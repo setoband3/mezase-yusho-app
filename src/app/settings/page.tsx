@@ -4,6 +4,8 @@ import { readStore } from "@/lib/store";
 import type { DashboardData } from "../dashboard-types";
 import { SettingsClient } from "./settings-client";
 
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage() {
   const store = await readStore();
   const today = getTodayInJst();
