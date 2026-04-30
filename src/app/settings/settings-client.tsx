@@ -64,7 +64,7 @@ export function SettingsClient({ initialData }: { initialData: DashboardData }) 
 
   async function submitWithRefresh(
     url: string,
-    payload: Record<string, number | string | string[]>,
+    payload: Record<string, number | string | string[] | boolean>,
     successMessage: string,
     method = "POST",
   ) {
@@ -119,6 +119,27 @@ export function SettingsClient({ initialData }: { initialData: DashboardData }) 
         holidayDates,
       },
       "設定を保存しました。",
+    );
+  }
+
+  async function onResetAll() {
+    const ok = window.confirm(
+      "担当者以外のデータ（目標金額・売上・入室記録）をリセットしますか？",
+    );
+    if (!ok) {
+      return;
+    }
+
+    const clearCalendar = window.confirm(
+      "休業日カレンダーも消しますか？\nOK: 消す / キャンセル: 残す",
+    );
+
+    await submitWithRefresh(
+      "/api/reset",
+      { clearHolidayDates: clearCalendar },
+      clearCalendar
+        ? "リセット完了（休業日もクリア）"
+        : "リセット完了（休業日は保持）",
     );
   }
 
@@ -305,12 +326,22 @@ export function SettingsClient({ initialData }: { initialData: DashboardData }) 
             1人あたり1日目標: {formatYen(data.perDayPerStaffTarget)}
           </div>
 
-          <button
-            disabled={loading}
-            className="rounded-md bg-cyan-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
-          >
-            保存する
-          </button>
+          <div className="flex gap-2">
+            <button
+              disabled={loading}
+              className="rounded-md bg-cyan-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
+            >
+              保存する
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={onResetAll}
+              className="rounded-md bg-rose-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
+            >
+              リセット
+            </button>
+          </div>
         </form>
       </section>
 
