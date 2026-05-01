@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardData } from "./dashboard-types";
 
 function formatYen(value: number) {
@@ -76,8 +76,21 @@ export function DashboardClient({ initialData }: { initialData: DashboardData })
     return window.localStorage.getItem("meza-se-user-id") ?? "";
   });
   const [saleAmount, setSaleAmount] = useState("");
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState<{
+    text: string;
+    variant: "success" | "error" | "info";
+  } | null>(null);
   const [loading, setLoading] = useState(false);
+  /** DOM のタイマーID（Node の Timeout 型と混在しないよう number で保持） */
+  const feedbackHideTimerRef = useRef<number | null>(null);
+
+  function clearFeedbackHideTimer() {
+    const id = feedbackHideTimerRef.current;
+    if (id !== null) {
+      window.clearTimeout(id);
+      feedbackHideTimerRef.current = null;
+    }
+  }
 
   const staffNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -100,6 +113,10 @@ export function DashboardClient({ initialData }: { initialData: DashboardData })
     }
   }, [loggedInStaffId]);
 
+  useEffect(() => {
+    return () => clearFeedbackHideTimer();
+  }, []);
+
   async function refreshDashboard() {
     const response = await fetch("/api/dashboard", { cache: "no-store" });
     const next = (await response.json()) as DashboardData;
@@ -117,9 +134,11 @@ export function DashboardClient({ initialData }: { initialData: DashboardData })
     url: string,
     payload: Record<string, number | string | string[]>,
     successMessage: string,
+    options?: { successAutoHideMs?: number },
   ) {
     setLoading(true);
-    setMessage("");
+    clearFeedbackHideTimer();
+    setFeedback(null);
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -131,9 +150,22 @@ export function DashboardClient({ initialData }: { initialData: DashboardData })
         throw new Error(result.message ?? "処理に失敗しました。");
       }
       await refreshDashboard();
-      setMessage(successMessage);
+      const hideMs = options?.successAutoHideMs;
+      setFeedback({
+        text: successMessage,
+        variant: hideMs ? "success" : "info",
+      });
+      if (hideMs) {
+        feedbackHideTimerRef.current = window.setTimeout(() => {
+          setFeedback(null);
+          feedbackHideTimerRef.current = null;
+        }, hideMs) as unknown as number;
+      }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "処理に失敗しました。");
+      setFeedback({
+        text: error instanceof Error ? error.message : "処理に失敗しました。",
+        variant: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -142,13 +174,14 @@ export function DashboardClient({ initialData }: { initialData: DashboardData })
   async function onAddSales(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loggedInStaffId) {
-      setMessage("先にログインしてください。");
+      setFeedback({ text: "先にログインしてください。", variant: "error" });
       return;
     }
     await submitWithRefresh(
       "/api/sales",
       { staffId: loggedInStaffId, amount: Number(saleAmount) },
       "売上を登録しました。",
+      { successAutoHideMs: 1200 },
     );
     setSaleAmount("");
   }
@@ -281,9 +314,24 @@ export function DashboardClient({ initialData }: { initialData: DashboardData })
             disabled={loading || data.staffRows.length === 0 || data.inputLock.isLocked}
             className="rounded-md bg-lime-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
           >
-            売上を追加
+            {loading ? "登録中…" : "売上を追加"}
           </button>
         </form>
+        {feedback && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={
+              feedback.variant === "success"
+                ? "rounded-lg border-2 border-lime-500 bg-lime-50 px-3 py-3 text-center text-base font-extrabold text-lime-950"
+                : feedback.variant === "error"
+                  ? "rounded-lg border-2 border-rose-400 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-900"
+                  : "rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900"
+            }
+          >
+            {feedback.text}
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl border-2 border-fuchsia-200 bg-white p-4 shadow-sm">
@@ -360,11 +408,6 @@ export function DashboardClient({ initialData }: { initialData: DashboardData })
         </button>
       </section>
 
-      {message && (
-        <section className="rounded-lg border-2 border-blue-300 bg-blue-50 p-3 text-sm font-semibold text-blue-800">
-          {message}
-        </section>
-      )}
     </main>
   );
 }
