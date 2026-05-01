@@ -27,6 +27,12 @@ function sumAllSales(store: AppStore): number {
   return store.sales.reduce((acc, sale) => acc + sale.amount, 0);
 }
 
+function sumSalesBeforeDate(store: AppStore, date: string): number {
+  return store.sales
+    .filter((sale) => sale.salesDate < date)
+    .reduce((acc, sale) => acc + sale.amount, 0);
+}
+
 function calculateAchieveStreak(
   store: AppStore,
   workingDays: string[],
@@ -72,13 +78,16 @@ export function calculateDashboard(store: AppStore, date: string) {
   const todayTeamSales = sumSalesByDate(store, date);
   const totalSales = sumAllSales(store);
   const totalTarget = store.goal.totalTargetAmount;
+  const salesBeforeToday = sumSalesBeforeDate(store, date);
+  // 日割り目標の分母は「昨日までの売上」まで（当日入力で日中に目標が動かない）
+  const remainingForDailySplit = Math.max(totalTarget - salesBeforeToday, 0);
   const remainingTarget = Math.max(totalTarget - totalSales, 0);
   const totalWorkDays = allWorkingDays.length;
   const remainingWorkDays = Math.max(
     allWorkingDays.filter((day) => day >= date).length,
     1,
   );
-  const perDayTeamTarget = Math.ceil(remainingTarget / remainingWorkDays);
+  const perDayTeamTarget = Math.ceil(remainingForDailySplit / remainingWorkDays);
   const perDayPerStaffTarget = ceilToTenThousand(
     perDayTeamTarget / Math.max(staffCount, 1),
   );
