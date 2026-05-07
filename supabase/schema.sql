@@ -33,3 +33,14 @@ create index if not exists checkins_checkin_date_idx on public.checkins (checkin
 insert into public.goal_settings (id, total_target_amount, start_date, end_date, holiday_dates)
 values (1, 0, '2026-04-01', '2026-04-30', '{}')
 on conflict (id) do nothing;
+
+-- Security baseline: enforce RLS and remove direct API role access.
+alter table public.staff enable row level security;
+alter table public.goal_settings enable row level security;
+alter table public.sales enable row level security;
+alter table public.checkins enable row level security;
+
+revoke all on table public.staff from anon, authenticated;
+revoke all on table public.goal_settings from anon, authenticated;
+revoke all on table public.sales from anon, authenticated;
+revoke all on table public.checkins from anon, authenticated;
