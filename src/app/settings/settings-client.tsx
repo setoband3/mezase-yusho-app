@@ -91,6 +91,13 @@ export function SettingsClient({ initialData }: { initialData: DashboardData }) 
 
   async function onAddStaff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const ok = window.confirm(
+      "管理者以外は担当者を追加しないでください。\n追加すると目標計算に影響します。続行しますか？",
+    );
+    if (!ok) {
+      setMessage("担当者追加をキャンセルしました。");
+      return;
+    }
     await submitWithRefresh("/api/staff", { name: newStaffName }, "担当者を追加しました。");
     setNewStaffName("");
   }
