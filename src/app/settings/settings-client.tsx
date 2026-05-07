@@ -143,6 +143,23 @@ export function SettingsClient({ initialData }: { initialData: DashboardData }) 
     );
   }
 
+  async function onUnlockInputLock() {
+    const lock = data.inputLock;
+    if (!lock.isLocked) {
+      setMessage("現在、入力ロックはかかっていません。");
+      return;
+    }
+    const ok = window.confirm(
+      `${lock.previousWorkingDay} の未入室者（${lock.pendingStaffNames.join(
+        " / ",
+      )}）を補完して、入力ロックを解除しますか？`,
+    );
+    if (!ok) {
+      return;
+    }
+    await submitWithRefresh("/api/input-lock/unlock", {}, "入力ロックを解除しました。");
+  }
+
   function onRemoveHoliday(target: string) {
     setHolidayDates((prev) => prev.filter((day) => day !== target));
   }
@@ -332,6 +349,14 @@ export function SettingsClient({ initialData }: { initialData: DashboardData }) 
               className="rounded-md bg-cyan-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
             >
               保存する
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={onUnlockInputLock}
+              className="rounded-md bg-amber-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
+            >
+              入力ロック解除
             </button>
             <button
               type="button"
